@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_refresh"
+        android:title="@string/action_refresh"
+        android:orderInCategory="1"
+        app:showAsAction="ifRoom"/>
+    <item
+        android:id="@+id/action_share"
+        android:title="Share Weather Details"
+        android:orderInCategory="2"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/action_map"
+        android:title="Open Map"
+        android:orderInCategory="3"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/action_settings"
+        android:title="Settings"
+        android:orderInCategory="4"
+        app:showAsAction="never"/>
+</menu>
