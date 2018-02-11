@@ -63,16 +63,16 @@ class CustomCursorAdapter(val mContext: Context) :
      * When data changes and a re-query occurs, this function swaps the old Cursor
      * with a newly updated Cursor (Cursor c) that is passed in.
      */
-    fun swapCursor(c: Cursor?): Cursor? {
+    fun swapCursor(c: Cursor?) {
         // check if this cursor is the same as the previous cursor
         if (mCursor == c) {
-            return null // bc nothing has changed
+            return // bc nothing has changed
         }
-        val temp = mCursor
+        // close the previous cursor
+        mCursor?.let { it.close() }
         mCursor = c // new cursor value assigned
         // check if this is a valid cursor, then update the cursor
         c?.let { notifyDataSetChanged() }
-        return temp
     }
 
     class TaskViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {

@@ -46,6 +46,6 @@ class AddTaskActivity : AppCompatActivity() {
     fun onPrioritySelected(view: View) {
         val ids = listOf(R.id.radButton1, R.id.radButton2, R.id.radButton3)
         val priorities = listOf(1, 2, 3)
-        mPriority = priorities[ids.indexOf(ids.find { findViewById<RadioButton>(it).isChecked })]
+        mPriority = priorities[ids.indexOfFirst { findViewById<RadioButton>(it).isChecked } ]
     }
 }

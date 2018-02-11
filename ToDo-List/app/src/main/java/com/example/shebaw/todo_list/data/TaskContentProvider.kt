@@ -78,7 +78,24 @@ class TaskContentProvider : ContentProvider() {
     }
 
     override fun delete(uri: Uri?, selection: String?, selectionArgs: Array<out String>?): Int {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        val db = mTaskDbHelper.writableDatabase
+        var tasksDeleted = 0
+        when (sUriMatcher.match(uri)) {
+            TASK_WITH_ID -> {
+                // Get the task ID from the URI path
+                val id = uri?.pathSegments?.get(1)
+                // Use slections/selectionArgs to filter for this id
+                tasksDeleted = db.delete(TABLE_NAME, "_id=?", arrayOf(id))
+            }
+            else -> throw UnsupportedOperationException("Unknown URI: $uri")
+        }
+        // Notify the resolver of a change and return the number of items deleted
+        if (tasksDeleted != 0) {
+            // A task was deleted, set notification
+            context.contentResolver.notifyChange(uri, null)
+        }
+        // Return the number of tasks deleted
+        return tasksDeleted
     }
 
     override fun update(uri: Uri?, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int {
@@ -99,7 +116,7 @@ const val TASK_WITH_ID = 101
 fun buildUriMatcher() =
         UriMatcher(UriMatcher.NO_MATCH).apply {
             addURI(TaskContract.AUTHORITY, TaskContract.PATH_TASKS, TASKS)
-            addURI(TaskContract.AUTHORITY, "${TaskContract.PATH_TASKS}#", TASK_WITH_ID)
+            addURI(TaskContract.AUTHORITY, "${TaskContract.PATH_TASKS}/#", TASK_WITH_ID)
         }
 
 val sUriMatcher = buildUriMatcher()

@@ -47,8 +47,17 @@ class MainActivity : AppCompatActivity(), LoaderManager.LoaderCallbacks<Cursor> 
                 return false
             }
 
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder?, direction: Int) {
-                // swipe to delete will be implemented here
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                // Works because the id was set as a tag in the RecyclerView code
+                val id = viewHolder.itemView.tag
+                var uri = TaskContract.TaskEntry.CONTENT_URI
+                uri = uri.buildUpon().appendPath(id.toString()).build()
+
+                contentResolver.delete(uri, null, null)
+
+                // Restart the loader since we have deleted an item and the recycler view needs to
+                // be repopulated
+                supportLoaderManager.restartLoader(TASK_LOADER_ID, null, this@MainActivity)
             }
         }).attachToRecyclerView(mRecyclerView)
 
@@ -126,6 +135,13 @@ class MainActivity : AppCompatActivity(), LoaderManager.LoaderCallbacks<Cursor> 
         mAdapter.swapCursor(data)
     }
 
+    /**
+     * Called when a previously created loader is being reset, and thus
+     * making its data unavailable.
+     * onLoaderReset removes any references this activity had to the loader's data.
+     *
+     * @param loader The Loader that is being reset.
+     */
     override fun onLoaderReset(loader: Loader<Cursor>?) {
         mAdapter.swapCursor(null)
     }
