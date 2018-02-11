@@ -1,26 +1,80 @@
 package com.example.shebaw.todo_list.data
 
 import android.content.ContentProvider
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.UriMatcher
 import android.database.Cursor
 import android.net.Uri
+import com.example.shebaw.todo_list.data.TaskContract.TaskEntry.Companion.TABLE_NAME
 
 class TaskContentProvider : ContentProvider() {
     private lateinit var mTaskDbHelper: TaskDbHelper
 
     override fun onCreate(): Boolean {
-        val context = getContext()
         mTaskDbHelper = TaskDbHelper(context)
         return true
     }
 
     override fun insert(uri: Uri?, values: ContentValues?): Uri {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        // Get access to the task database (to write new data to)
+        val db = mTaskDbHelper.writableDatabase
+        lateinit var returnUri: Uri
+        // Write URI matching code to identify the match for the tasks directory
+        when (sUriMatcher.match(uri)) {
+            TASKS -> {
+                // Insert new values into the database
+                // Inserting values into tasks table
+                val id = db.insert(TABLE_NAME, null, values)
+                if (id > 0) {
+                    returnUri = ContentUris.withAppendedId(TaskContract.TaskEntry.CONTENT_URI, id)
+                } else {
+                    throw android.database.SQLException("Failed to insert row into $uri")
+                }
+            }
+            else -> UnsupportedOperationException("Unknown URI: $uri")
+        }
+        // Notify the resolver if the uri has changed, and return the newly inserted URI
+        context.contentResolver.notifyChange(uri, null)
+        return returnUri
     }
 
-    override fun query(uri: Uri?, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun query(uri: Uri?, projection: Array<out String>?, selection: String?,
+                       selectionArgs: Array<out String>?, sortOrder: String?): Cursor {
+        val db = mTaskDbHelper.writableDatabase
+        lateinit var retCursor: Cursor
+        when (sUriMatcher.match(uri)) {
+            TASKS -> {
+                retCursor = db.query(TABLE_NAME,
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null,
+                        null,
+                        sortOrder)
+            }
+            // Add a case to query for a single row of data by ID
+            TASK_WITH_ID -> {
+                // using selection and selectionArgs
+                // URI: content://<authority>/tasks/#
+                val id = uri?.pathSegments?.get(1)
+
+                // Selection is the _ID column = ?, and the Selection args = the row ID from the URI
+                val mSelection = "_id=?"
+                val mSelectionArgs = arrayOf(id)
+                retCursor = db.query(TABLE_NAME,
+                        projection,
+                        mSelection,
+                        mSelectionArgs,
+                        null,
+                        null,
+                        sortOrder)
+            }
+            else -> UnsupportedOperationException("Unknown URI: $uri")
+        }
+        // Set a notification URI for the cursor
+        retCursor.setNotificationUri(context.contentResolver, uri)
+        return retCursor
     }
 
     override fun delete(uri: Uri?, selection: String?, selectionArgs: Array<out String>?): Int {

@@ -11,7 +11,9 @@ import android.support.v4.content.Loader
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.support.v7.widget.helper.ItemTouchHelper
+import android.util.Log
 import android.view.View
+import com.example.shebaw.todo_list.data.TaskContract
 
 class MainActivity : AppCompatActivity(), LoaderManager.LoaderCallbacks<Cursor> {
     private lateinit var mRecyclerView: RecyclerView
@@ -46,7 +48,7 @@ class MainActivity : AppCompatActivity(), LoaderManager.LoaderCallbacks<Cursor> 
             }
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder?, direction: Int) {
-                // swip to delete will be implemented here
+                // swipe to delete will be implemented here
             }
         }).attachToRecyclerView(mRecyclerView)
 
@@ -73,6 +75,11 @@ class MainActivity : AppCompatActivity(), LoaderManager.LoaderCallbacks<Cursor> 
         supportLoaderManager.initLoader(TASK_LOADER_ID, null, this);
     }
 
+    /**
+     * This method is called after this activity has been paused or restarted.
+     * Often, this is after new data has been inserted through an AddTaskActivity,
+     * so this restarts the loader to re-query the underlying data for any changes.
+     */
     override fun onResume() {
         super.onResume()
 
@@ -89,8 +96,20 @@ class MainActivity : AppCompatActivity(), LoaderManager.LoaderCallbacks<Cursor> 
                 if (mTaskData != null) deliverResult(mTaskData) else forceLoad()
             }
 
-            override fun loadInBackground(): Cursor {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            override fun loadInBackground(): Cursor? {
+                // Query and load all task data in the background; sort by priority
+                // Use a try/catch block to catch any errors in loading data
+                try {
+                    return contentResolver.query(TaskContract.TaskEntry.CONTENT_URI,
+                            null,
+                            null,
+                            null,
+                            TaskContract.TaskEntry.COLUMN_PRIORITY)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to asynchronously load data.")
+                    e.printStackTrace()
+                    return null
+                }
             }
 
             // deliverResult sends the result of the load, a Cursor, to the registered listener
