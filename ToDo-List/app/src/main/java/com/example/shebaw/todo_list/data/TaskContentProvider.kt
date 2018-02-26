@@ -70,7 +70,7 @@ class TaskContentProvider : ContentProvider() {
                         null,
                         sortOrder)
             }
-            else -> UnsupportedOperationException("Unknown URI: $uri")
+            else -> throw UnsupportedOperationException("Unknown URI: $uri")
         }
         // Set a notification URI for the cursor
         retCursor.setNotificationUri(context.contentResolver, uri)

@@ -1,111 +1,191 @@
 package com.example.shebaw.sunshinekotlin
 
-import android.content.ComponentName
 import android.content.Intent
+import android.database.Cursor
 import android.net.Uri
-import android.os.AsyncTask
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.preference.PreferenceManager
+import android.support.v4.app.LoaderManager
 import android.support.v4.app.ShareCompat
+import android.support.v4.content.CursorLoader
+import android.support.v4.content.Loader
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.ProgressBar
-import com.example.shebaw.sunshinekotlin.data.SunshinePreferences
-import com.example.shebaw.sunshinekotlin.utilities.NetworkUtils
-import com.example.shebaw.sunshinekotlin.utilities.OpenWeatherJsonUtils
-import java.io.IOException
+import com.example.shebaw.sunshinekotlin.data.WeatherContract
+import com.example.shebaw.sunshinekotlin.sync.SunshineSyncUtils
 
-class MainActivity : AppCompatActivity(), ForecastAdapter.ForecastAdapterOnClickHandler {
+class MainActivity : AppCompatActivity(),
+        LoaderManager.LoaderCallbacks<Cursor>,
+        ForecastAdapter.ForecastAdapterOnClickHandler {
     private lateinit var mRecyclerView: RecyclerView
     private lateinit var mForecastAdapter: ForecastAdapter
-    private lateinit var mErrorMessageTextView: TextView
-    private lateinit var mLoadingProgressBar: ProgressBar
+    private lateinit var mLoadingIndicator: ProgressBar
+    var mPosition = RecyclerView.NO_POSITION
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_forecast)
+        supportActionBar?.elevation = 0f
+
         mRecyclerView = findViewById<RecyclerView>(R.id.recyclerview_forecast)
-        mErrorMessageTextView = findViewById<TextView>(R.id.tv_error_message_display)
-        mLoadingProgressBar = findViewById<ProgressBar>(R.id.pb_loading_indicator)
+        mLoadingIndicator = findViewById<ProgressBar>(R.id.pb_loading_indicator)
         val layoutManager = LinearLayoutManager(this,
                 LinearLayout.VERTICAL, false)
         mRecyclerView.layoutManager = layoutManager
         mRecyclerView.setHasFixedSize(true)
-        mForecastAdapter = ForecastAdapter(this)
+        mForecastAdapter = ForecastAdapter(this, this)
         mRecyclerView.adapter = mForecastAdapter
 
-        loadWeatherData()
+        showLoading()
+
+        /*
+         * Ensures a loader is initialized and active. If the loader doesn't already exist, one is
+         * created and (if the activity/fragment is currently started) starts the loader. Otherwise
+         * the last created loader is re-used.
+         */
+        supportLoaderManager.initLoader(ID_FORECAST_LOADER, null, this)
+
+        SunshineSyncUtils.initialize(this)
     }
 
-    private fun loadWeatherData() {
-        WeatherQueryTask().execute(SunshinePreferences.getPreferredWeatherLocation(this))
+    /**
+     * Called by the {@link android.support.v4.app.LoaderManagerImpl} when a new Loader needs to be
+     * created. This Activity only uses one loader, so we don't necessarily NEED to check the
+     * loaderId, but this is certainly best practice.
+     *
+     * @param loaderId The loader ID for which we need to create a loader
+     * @param bundle   Any arguments supplied by the caller
+     * @return A new Loader instance that is ready to start loading.
+     */
+    override fun onCreateLoader(id: Int, args: Bundle?): Loader<Cursor> {
+        when (id) {
+            ID_FORECAST_LOADER -> {
+                // URI for all rows of weather data in our weather table
+                val forecastQueryUri = WeatherContract.WeatherEntry.CONTENT_URI
+                // Sort order: Ascending by date
+                val sortOrder = "${WeatherContract.WeatherEntry.COLUMN_DATE} ASC"
+                /*
+                 * A SELECTION in SQL declares which rows you'd like to return. In our case, we
+                 * want all weather data from today onwards that is stored in our weather table.
+                 * We created a handy method to do that in our WeatherEntry class.
+                 */
+                val selection = WeatherContract.WeatherEntry.getSqlSelectForTodayOnwards()
+
+                return CursorLoader(this,
+                        forecastQueryUri,
+                        MAIN_FORECAST_PROJECTION,
+                        selection,
+                        null,
+                        sortOrder)
+
+            }
+            else -> throw RuntimeException("Loader Not Implemented: $id")
+        }
     }
 
+    /**
+     * Called when a Loader has finished loading its data.
+     *
+     * NOTE: There is one small bug in this code. If no data is present in the cursor do to an
+     * initial load being performed with no access to internet, the loading indicator will show
+     * indefinitely, until data is present from the ContentProvider. This will be fixed in a
+     * future version of the course.
+     *
+     * @param loader The Loader that has finished.
+     * @param data   The data generated by the Loader.
+     */
+    override fun onLoadFinished(loader: Loader<Cursor>?, data: Cursor?) {
+        mForecastAdapter.swapCursor(data)
+        if (mPosition == RecyclerView.NO_POSITION) mPosition = 0
+        // Smooth scroll the RecyclerView to mPosition
+        mRecyclerView.smoothScrollToPosition(mPosition)
+
+        // If the Cursor's size is not equal to 0, call showWeatherDataView
+        if (data?.count != 0) showWeatherDataView()
+    }
+
+    /**
+     * Called when a previously created loader is being reset, and thus making its data unavailable.
+     * The application should at this point remove any references it has to the Loader's data.
+     *
+     * @param loader The Loader that is being reset.
+     */
+    override fun onLoaderReset(loader: Loader<Cursor>?) {
+        /*
+         * Since this Loader's data is now invalid, we need to clear the Adapter that is
+         * displaying the data.
+         */
+        mForecastAdapter.swapCursor(null)
+    }
+
+    /**
+     * This method will make the View for the weather data visible and hide the error message and
+     * loading indicator.
+     * <p>
+     * Since it is okay to redundantly set the visibility of a View, we don't need to check whether
+     * each view is currently visible or invisible.
+     */
     private fun showWeatherDataView() {
+        // First, hide the loading indicator
+        mLoadingIndicator.visibility = View.INVISIBLE
+        // Finally, make sure the weather data is visible
         mRecyclerView.visibility = View.VISIBLE
-        mErrorMessageTextView.visibility = View.INVISIBLE
     }
 
-    private fun showErrorMessage() {
-        mErrorMessageTextView.visibility = View.VISIBLE
+    /**
+     * This method will make the loading indicator visible and hide the weather View and error
+     * message.
+     * <p>
+     * Since it is okay to redundantly set the visibility of a View, we don't need to check whether
+     * each view is currently visible or invisible.
+     */
+    private fun showLoading() {
+        // Then, hide the weather data
         mRecyclerView.visibility = View.INVISIBLE
+        // Finally, show the loading indicator
+        mLoadingIndicator.visibility = View.VISIBLE
     }
 
-    inner class WeatherQueryTask : AsyncTask<String, Void, ArrayList<String>?>() {
-        override fun onPreExecute() {
-            mLoadingProgressBar.visibility = View.VISIBLE
-            showWeatherDataView()
-        }
-
-        override fun doInBackground(vararg params: String): ArrayList<String>? {
-            val location = if (params.size > 0) params[0] else return null
-            var weatherData: ArrayList<String>? = null
-            try {
-                val url = NetworkUtils.buildUrl(location)
-                val response = NetworkUtils.getResponseFromHttpUrl(url) ?: return null
-                weatherData = OpenWeatherJsonUtils.
-                        getSimpleWeatherStringsFromJson(this@MainActivity, response)
-            } catch (e: NumberFormatException) {
-                Log.i("WeatherQueryTask", "invalid url field")
-                e.printStackTrace()
-            } catch (e: IOException) {
-                Log.i("WeatherQueryTask", "network IO error")
-                e.printStackTrace()
-            }
-            return weatherData
-        }
-
-        override fun onPostExecute(result: ArrayList<String>?) {
-            // hide the progress bar
-            mLoadingProgressBar.visibility = View.INVISIBLE
-            if (result == null || result.size == 0) {
-                showErrorMessage()
-                return
-            }
-            showWeatherDataView()
-            mForecastAdapter.setWeatherData(result)
-        }
-    }
-
+    /**
+     * This is where we inflate and set up the menu for this Activity.
+     *
+     * @param menu The options menu in which you place your items.
+     *
+     * @return You must return true for the menu to be displayed;
+     *         if you return false it will not be shown.
+     *
+     * @see #onPrepareOptionsMenu
+     * @see #onOptionsItemSelected
+     */
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        /* Use AppCompatActivity's method getMenuInflater to get a handle on the menu inflater */
         menuInflater.inflate(R.menu.forecast, menu)
-        return super.onCreateOptionsMenu(menu)
+        /* Return true so that the menu is displayed in the Toolbar */
+        return true
     }
 
+    /**
+     * Callback invoked when a menu item was selected from this Activity's menu.
+     *
+     * @param item The menu item that was selected by the user
+     *
+     * @return true if you handle the menu click here, false otherwise
+     */
     override fun onOptionsItemSelected(item: MenuItem?): Boolean =
         when (item?.itemId) {
+            /*
             R.id.action_refresh -> {
                 mForecastAdapter.setWeatherData(null)
                 loadWeatherData()
                 true
             }
+            */
             /*
             R.id.action_share -> {
                 shareText(DetailActivity.mWeatherEntry.text)
@@ -124,12 +204,16 @@ class MainActivity : AppCompatActivity(), ForecastAdapter.ForecastAdapterOnClick
             else ->super.onOptionsItemSelected(item)
         }
 
-    override fun onListItemClick(s: String) {
+    /**
+     * This method is for responding to clicks from our list.
+     *
+     * @param weatherForDay String describing weather details for a particular day
+     */
+    override fun onListItemClick(s: String) =
         with (Intent(this, DetailActivity::class.java)) {
             putExtra(Intent.EXTRA_TEXT, s)
             startActivity(this)
         }
-    }
 
     private fun shareText(textToShare: String) {
         val mimeType = "text/plain"
@@ -144,11 +228,12 @@ class MainActivity : AppCompatActivity(), ForecastAdapter.ForecastAdapterOnClick
     private fun openLocationInMap() {
         val address = PreferenceManager.getDefaultSharedPreferences(this)
                 ?.getString("location", DEFAULT_ADDRESS) ?: DEFAULT_ADDRESS
-        val builder = Uri.Builder()
-        builder.scheme("geo")
-                .path("0,0")
-                .query(address)
-        showMap(builder.build())
+        with (Uri.Builder()) {
+            scheme("geo")
+                    .path("0,0")
+                    .query(address)
+            showMap(build())
+        }
     }
 
     private fun showMap(uri: Uri) =
@@ -161,5 +246,34 @@ class MainActivity : AppCompatActivity(), ForecastAdapter.ForecastAdapterOnClick
 
     companion object {
         const val DEFAULT_ADDRESS = "1600 Amphitheatre Parkway, CA"
+
+        /*
+         * The columns of data that we are interested in displaying within our MainActivity's list of
+         * weather data.
+         */
+        val MAIN_FORECAST_PROJECTION = arrayOf(
+                WeatherContract.WeatherEntry.COLUMN_DATE,
+                WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,
+                WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,
+                WeatherContract.WeatherEntry.COLUMN_WEATHER_ID
+        )
+        /*
+         * We store the indices of the values in the array of Strings above to more quickly be able to
+         * access the data from our query. If the order of the Strings above changes, these indices
+         * must be adjusted to match the order of the Strings.
+         */
+        const val INDEX_WEATHER_DATE = 0;
+        const val INDEX_WEATHER_MAX_TEMP = 1;
+        const val INDEX_WEATHER_MIN_TEMP = 2;
+        const val INDEX_WEATHER_CONDITION_ID = 3;
+
+        /*
+         * This ID will be used to identify the Loader responsible for loading our weather forecast. In
+         * some cases, one Activity can deal with many Loaders. However, in our case, there is only one.
+         * We will still use this ID to initialize the loader and create the loader for best practice.
+         * Please note that 44 was chosen arbitrarily. You can use whatever number you like, so long as
+         * it is unique and consistent.
+         */
+        const val ID_FORECAST_LOADER = 44
     }
 }

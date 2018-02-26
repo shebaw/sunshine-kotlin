@@ -18,8 +18,8 @@ class WeatherDbHelper(context: Context) :
                 "${WeatherContract.WeatherEntry.COLUMN_MAX_TEMP} REAL NOT NULL, "+
                 "${WeatherContract.WeatherEntry.COLUMN_PRESSURE} REAL NOT NULL, "+
                 "${WeatherContract.WeatherEntry.COLUMN_WIND_SPEED} REAL NOT NULL, "+
-                "${WeatherContract.WeatherEntry.COLUMN_DEGREES} REAL NOT NULL "+
-                "UNIQUE (${WeatherContract.WeatherEntry.COLUMN_DATE}) ON CONFLICT REPLACE "
+                "${WeatherContract.WeatherEntry.COLUMN_DEGREES} REAL NOT NULL, "+
+                "UNIQUE (${WeatherContract.WeatherEntry.COLUMN_DATE}) ON CONFLICT REPLACE "+
                 ");"
         db?.execSQL(SQL_CREATE_WEATHER_TABLE)
     }

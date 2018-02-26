@@ -55,12 +55,12 @@ object SunshineWeatherUtils {
      */
     fun formatTemperature(context: Context, temperature: Double): String {
         var temperature = temperature
-        var temperatureFormatResourceId = R.string.format_temperature_celsius
 
         if (!SunshinePreferences.isMetric(context)) {
             temperature = celsiusToFahrenheit(temperature)
-            temperatureFormatResourceId = R.string.format_temperature_fahrenheit
         }
+
+        val temperatureFormatResourceId = R.string.format_temperature
 
         /* For presentation, assume the user doesn't care about tenths of a degree. */
         return String.format(context.getString(temperatureFormatResourceId), temperature)
@@ -112,22 +112,15 @@ object SunshineWeatherUtils {
          * conditions. Seriously, try it!
          */
         var direction = "Unknown"
-        if (degrees >= 337.5 || degrees < 22.5) {
-            direction = "N"
-        } else if (degrees >= 22.5 && degrees < 67.5) {
-            direction = "NE"
-        } else if (degrees >= 67.5 && degrees < 112.5) {
-            direction = "E"
-        } else if (degrees >= 112.5 && degrees < 157.5) {
-            direction = "SE"
-        } else if (degrees >= 157.5 && degrees < 202.5) {
-            direction = "S"
-        } else if (degrees >= 202.5 && degrees < 247.5) {
-            direction = "SW"
-        } else if (degrees >= 247.5 && degrees < 292.5) {
-            direction = "W"
-        } else if (degrees >= 292.5 && degrees < 337.5) {
-            direction = "NW"
+        when {
+            degrees >= 337.5 || degrees < 22.5 -> direction = "N"
+            degrees >= 22.5 && degrees < 67.5 -> direction = "NE"
+            degrees >= 67.5 && degrees < 112.5 -> direction = "E"
+            degrees >= 112.5 && degrees < 157.5 -> direction = "SE"
+            degrees >= 157.5 && degrees < 202.5 -> direction = "S"
+            degrees >= 202.5 && degrees < 247.5 -> direction = "SW"
+            degrees >= 247.5 && degrees < 292.5 -> direction = "W"
+            degrees >= 292.5 && degrees < 337.5 -> direction = "NW"
         }
         return String.format(context.getString(windFormat), windSpeed, direction)
     }
@@ -215,36 +208,25 @@ object SunshineWeatherUtils {
      *
      * @return resource id for the corresponding icon. -1 if no relation is found.
      */
-    fun getIconResourceForWeatherCondition(weatherId: Int): Int {
-        /*
+    fun getIconResourceForWeatherCondition(weatherId: Int): Int =
+            /*
          * Based on weather code data found at:
          * See http://bugs.openweathermap.org/projects/api/wiki/Weather_Condition_Codes
          */
-        if (weatherId >= 200 && weatherId <= 232) {
-            return R.drawable.ic_storm
-        } else if (weatherId >= 300 && weatherId <= 321) {
-            return R.drawable.ic_light_rain
-        } else if (weatherId >= 500 && weatherId <= 504) {
-            return R.drawable.ic_rain
-        } else if (weatherId == 511) {
-            return R.drawable.ic_snow
-        } else if (weatherId >= 520 && weatherId <= 531) {
-            return R.drawable.ic_rain
-        } else if (weatherId >= 600 && weatherId <= 622) {
-            return R.drawable.ic_snow
-        } else if (weatherId >= 701 && weatherId <= 761) {
-            return R.drawable.ic_fog
-        } else if (weatherId == 761 || weatherId == 781) {
-            return R.drawable.ic_storm
-        } else if (weatherId == 800) {
-            return R.drawable.ic_clear
-        } else if (weatherId == 801) {
-            return R.drawable.ic_light_clouds
-        } else if (weatherId >= 802 && weatherId <= 804) {
-            return R.drawable.ic_cloudy
-        }
-        return -1
-    }
+            when {
+                weatherId >= 200 && weatherId <= 232 -> R.drawable.ic_storm
+                weatherId >= 300 && weatherId <= 321 -> R.drawable.ic_light_rain
+                weatherId >= 500 && weatherId <= 504 -> R.drawable.ic_rain
+                weatherId == 511 -> R.drawable.ic_snow
+                weatherId >= 520 && weatherId <= 531 -> R.drawable.ic_rain
+                weatherId >= 600 && weatherId <= 622 -> R.drawable.ic_snow
+                weatherId >= 701 && weatherId <= 761 -> R.drawable.ic_fog
+                weatherId == 761 || weatherId == 781 -> R.drawable.ic_storm
+                weatherId == 800 -> R.drawable.ic_clear
+                weatherId == 801 -> R.drawable.ic_light_clouds
+                weatherId >= 802 && weatherId <= 804 -> R.drawable.ic_cloudy
+                else -> -1
+            }
 
     /**
      * Helper method to provide the art resource id according to the weather condition id returned
@@ -254,41 +236,29 @@ object SunshineWeatherUtils {
      *
      * @return resource id for the corresponding icon. -1 if no relation is found.
      */
-    fun getArtResourceForWeatherCondition(weatherId: Int): Int {
-        /*
+    fun getArtResourceForWeatherCondition(weatherId: Int): Int =
+            /*
          * Based on weather code data found at:
-         * http://bugs.openweathermap.org/projects/api/wiki/Weather_Condition_Codes
+         * http://bugs.openweathermap.org/projects/api/wiki/Weather_Condition_Cods
          */
-        if (weatherId >= 200 && weatherId <= 232) {
-            return R.drawable.art_storm
-        } else if (weatherId >= 300 && weatherId <= 321) {
-            return R.drawable.art_light_rain
-        } else if (weatherId >= 500 && weatherId <= 504) {
-            return R.drawable.art_rain
-        } else if (weatherId == 511) {
-            return R.drawable.art_snow
-        } else if (weatherId >= 520 && weatherId <= 531) {
-            return R.drawable.art_rain
-        } else if (weatherId >= 600 && weatherId <= 622) {
-            return R.drawable.art_snow
-        } else if (weatherId >= 701 && weatherId <= 761) {
-            return R.drawable.art_fog
-        } else if (weatherId == 761 || weatherId == 771 || weatherId == 781) {
-            return R.drawable.art_storm
-        } else if (weatherId == 800) {
-            return R.drawable.art_clear
-        } else if (weatherId == 801) {
-            return R.drawable.art_light_clouds
-        } else if (weatherId >= 802 && weatherId <= 804) {
-            return R.drawable.art_clouds
-        } else if (weatherId >= 900 && weatherId <= 906) {
-            return R.drawable.art_storm
-        } else if (weatherId >= 958 && weatherId <= 962) {
-            return R.drawable.art_storm
-        } else if (weatherId >= 951 && weatherId <= 957) {
-            return R.drawable.art_clear
-        }
-        Log.e(LOG_TAG, "Unknown Weather: " + weatherId)
-        return R.drawable.art_storm
-    }
+            when {
+                weatherId >= 200 && weatherId <= 232 -> R.drawable.art_storm
+                weatherId >= 300 && weatherId <= 321 -> R.drawable.art_light_rain
+                weatherId >= 500 && weatherId <= 504 -> R.drawable.art_rain
+                weatherId == 511 -> R.drawable.art_snow
+                weatherId >= 520 && weatherId <= 531 -> R.drawable.art_rain
+                weatherId >= 600 && weatherId <= 622 -> R.drawable.art_snow
+                weatherId >= 701 && weatherId <= 761 -> R.drawable.art_fog
+                weatherId == 761 || weatherId == 771 || weatherId == 781 -> R.drawable.art_storm
+                weatherId == 800 -> R.drawable.art_clear
+                weatherId == 801 -> R.drawable.art_light_clouds
+                weatherId >= 802 && weatherId <= 804 -> R.drawable.art_clouds
+                weatherId >= 900 && weatherId <= 906 -> R.drawable.art_storm
+                weatherId >= 958 && weatherId <= 962 -> R.drawable.art_storm
+                weatherId >= 951 && weatherId <= 957 -> R.drawable.art_clear
+                else -> {
+                    Log.e(LOG_TAG, "Unknown Weather: " + weatherId)
+                    R.drawable.art_storm
+                }
+            }
 }
